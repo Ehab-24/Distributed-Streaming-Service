@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.client"
-        minSdk = 24
+        minSdk = 31
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
@@ -51,4 +51,7 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+//    implementation("com.github.wseemann:FFmpegMediaMetadataRetriever:1.0.14")
+    implementation("com.arthenica:mobile-ffmpeg-full:4.4")
+    implementation("com.github.kirich1409:viewbindingpropertydelegate-noreflection:1.5.9")
 }
