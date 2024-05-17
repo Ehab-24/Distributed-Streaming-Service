@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      shaka-player:
+        specifier: ^4.8.5
+        version: 4.8.5
     devDependencies:
       '@sveltejs/adapter-auto':
         specifier: ^3.0.0
@@ -406,6 +410,9 @@ packages:
   devalue@5.0.0:
     resolution: {integrity: sha512-gO+/OMXF7488D+u3ue+G7Y4AA3ZmUnB3eHJXmBTgNHvr4ZNzl36A0ZtG+XCRNYCkYx/bFmw4qtkoFLa+wSrwAA==}
 
+  eme-encryption-scheme-polyfill@2.1.4:
+    resolution: {integrity: sha512-RyYYPjz64N8YSYSrhJQTr7WcIVQpJUqqOBLq8TzXt8IYNtD4xSDOd1KeaUyFB7TdtLVu01McLHqQt8ZiDgQiLQ==}
+
   es6-promise@3.3.1:
     resolution: {integrity: sha512-SOp9Phqvqn7jtEUxPWdWfWoLmyt2VaJ6MpvP9Comy1MceMXqE6bxvaTu4iaxpYYPzhny28Lc+M87/c2cPK6lDg==}
 
@@ -603,6 +610,10 @@ packages:
 
   set-cookie-parser@2.6.0:
     resolution: {integrity: sha512-RVnVQxTXuerk653XfuliOxBP81Sf0+qfQE73LIYKcyMYHG94AuH0kgrQpRDuTZnSmjpysHmzxJXKNfa6PjFhyQ==}
+
+  shaka-player@4.8.5:
+    resolution: {integrity: sha512-fdBa9LHlHfHJ6Ja4/c0pUmeAUc0LAfDWE7fO1TvuFWMoSVQ8LAxGeTAI1NJCPI3lGlOKa3kc3xU90n/00nW80Q==}
+    engines: {node: '>=14'}
 
   sirv@2.0.4:
     resolution: {integrity: sha512-94Bdh3cC2PKrbgSOUqTiGPWVZeSiXfKOVZNJniWoqrWrRkB1CJzBU3NEbiTsPcYy1lDsANA/THzS+9WBiy5nfQ==}
@@ -1011,6 +1022,8 @@ snapshots:
 
   devalue@5.0.0: {}
 
+  eme-encryption-scheme-polyfill@2.1.4: {}
+
   es6-promise@3.3.1: {}
 
   esbuild@0.20.2:
@@ -1232,6 +1245,10 @@ snapshots:
       rimraf: 2.7.1
 
   set-cookie-parser@2.6.0: {}
+
+  shaka-player@4.8.5:
+    dependencies:
+      eme-encryption-scheme-polyfill: 2.1.4
 
   sirv@2.0.4:
     dependencies:
