@@ -1,10 +1,11 @@
 from django.db import models
 
+
 class Video(models.Model):
     file = models.FileField(upload_to='videos/')
 
 
-def VideoMetaData(models.Model):
+class VideoMetaData(models.Model):
     resolution = models.CharField(max_length=10)
     video_bitrate = models.CharField(max_length=10)
     audio_bitrate = models.CharField(max_length=10)

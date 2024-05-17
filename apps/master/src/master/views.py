@@ -5,6 +5,7 @@ from .serializers import VideoSerializer
 from .models import Video, VideoMetaData
 from .utils import encode_chunk, is_video, video_qualities, segment_chunk, to_mpd
 from django.conf import settings
+from datetime import datetime, timezone
 
 
 @api_view(['POST'])
@@ -13,17 +14,13 @@ def upload_video(request):
         return Response({"error": "No file was uploaded."}, status=status.HTTP_400_BAD_REQUEST)
     uploaded_file = request.data['file']
     if not is_video(uploaded_file):
-        return Response({"error": "Only video files are allowed."}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({"error": f"Only video files are allowed. Found {uploaded_file.name}"}, status=status.HTTP_400_BAD_REQUEST)
 
-    serializer = VideoSerializer(data=request.data)
-    if not serializer.is_valid():
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    serializer.save()
-    video_id = serializer.data['id']
+    video_id = 1
     tmp_dir = f'{settings.MEDIA_ROOT}/tmp/'
-    video_dir = f'{settings.MEDIA_ROOT}/videos'
+    process_dir = f'{settings.MEDIA_ROOT}/processed'
     upload_dir = f'{settings.MEDIA_ROOT}/uploads'
-    file_title = serializer.data['title']
+    file_title = "Test Title 1"
 
     uploaded_file_path = f'{upload_dir}/{uploaded_file.name}'
     with open(uploaded_file_path, 'wb+') as destination:
@@ -43,7 +40,7 @@ def upload_video(request):
             return Response({"error": "Failed to segment video."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         in_file = out_file
-        out_file = f'{video_dir}/{fragement_label}'
+        out_file = f'{process_dir}/{fragement_label}'
         if not to_mpd(in_file, out_file):
             return Response({"error": "Failed to generate MPEG-DASH files."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -55,10 +52,13 @@ def upload_video(request):
             audio_bitrate=q.audio_bitrate
         )
 
+        print("VIDEO METADATA:", video_metadata)
+
     # TODO: save chunk metadata to mastet
 
     response_data = { "id": video_id }
-    return Response(response_data, status=status.HTTP_201_CREATED)
+    headers = { "Content-Type": "application/json" }
+    return Response(response_data, headers=headers, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
