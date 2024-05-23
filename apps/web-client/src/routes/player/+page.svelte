@@ -4,7 +4,7 @@
 
     onMount(() => {
         const manifestUri =
-            "http://localhost:8000/media/processed/1_720p/stream.mpd";
+            "http://127.0.0.1:5000/media/processed/1_720p.mpd";
         function initApp() {
             shaka.polyfill.installAll();
             if (shaka.Player.isBrowserSupported()) {
