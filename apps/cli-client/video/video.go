@@ -30,7 +30,7 @@ func GetDuration(filePath string) (float64, error) {
 }
 
 func (d *Duration) String() string {
-    return fmt.Sprintf("%d:%d:%d", d.Hours, d.Minutes, d.Seconds)
+	return fmt.Sprintf("%d:%d:%d", d.Hours, d.Minutes, d.Seconds)
 }
 
 func Split(inputFile string, outputFile string, startDuration Duration, endDuration Duration) {
@@ -77,10 +77,39 @@ func Quality(inputFile string) (VideoQaulity, error) {
 	}, nil
 }
 
-func Upload(fileName string, filePath string, title string) {
-	url := "http://127.0.0.1:8000/api/upload/"
-	method := "POST"
+type VideoClient struct {
+	Scheme string
+	Host   string
+	Port   int
+}
 
+func NewClient(scheme string, host string, port int) VideoClient {
+	return VideoClient{
+		Scheme: scheme,
+		Host:   host,
+		Port:   port,
+	}
+}
+
+func (vc *VideoClient) URL() string {
+	return fmt.Sprintf("http://%s:%d", vc.Host, vc.Port)
+}
+
+func (vc *VideoClient) UploadURL() string {
+	return fmt.Sprintf("%s/video/upload", vc.URL())
+}
+
+func (vc *VideoClient) newUploadRequest(writer *multipart.Writer, videoID int64, chunkID int64, body *bytes.Buffer) (*http.Request, error) {
+	url := vc.UploadURL() + fmt.Sprintf("?id=%d&chunk_id=%d&replicate=%t", videoID, chunkID, true)
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+    return nil, err
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+  return req, nil
+}
+
+func (vc *VideoClient) Upload(videoID int64, chunkID int64, fileName string, filePath string, title string) {
 	// Open the file
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -106,7 +135,7 @@ func Upload(fileName string, filePath string, title string) {
 	}
 
 	// Add the title field to the form
-	err = writer.WriteField("title", "Test-File-1")
+	err = writer.WriteField("title", title)
 	if err != nil {
 		fmt.Println("Error writing title field:", err)
 		return
@@ -119,17 +148,12 @@ func Upload(fileName string, filePath string, title string) {
 		return
 	}
 
-	// Create a new HTTP request with the form data
-	req, err := http.NewRequest(method, url, &requestBody)
-	if err != nil {
-		fmt.Println("Error creating request:", err)
-		return
-	}
+  req, err := vc.newUploadRequest(writer, videoID, chunkID, &requestBody)
+  if err != nil {
+    fmt.Println("Error creating upload request:", err)
+    return
+  }
 
-	// Set the content type, it has to be multipart/form-data with the boundary included
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-
-	// Send the request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -149,11 +173,11 @@ func Upload(fileName string, filePath string, title string) {
 }
 
 func GetFileNameAndExt(filePath string) (string, string) {
-    splits := strings.Split(filePath, "/")
-    fileNameWithExt := splits[len(splits)-1]
-    splits = strings.Split(fileNameWithExt, ".")
-    fileName := splits[0]
-    ext := splits[len(splits) - 1]
+	splits := strings.Split(filePath, "/")
+	fileNameWithExt := splits[len(splits)-1]
+	splits = strings.Split(fileNameWithExt, ".")
+	fileName := splits[0]
+	ext := splits[len(splits)-1]
 
-    return fileName, ext
+	return fileName, ext
 }
