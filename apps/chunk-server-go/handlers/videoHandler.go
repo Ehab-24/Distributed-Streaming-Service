@@ -1,24 +1,27 @@
 package handlers
 
 import (
+	"archive/zip"
+	"encoding/json"
 	"fmt"
+	"log"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
+	"gihu.bocm/Ehab-24/chunk-server/args"
+	chunkserver "gihu.bocm/Ehab-24/chunk-server/chunk_server"
 	"gihu.bocm/Ehab-24/chunk-server/db"
+	"gihu.bocm/Ehab-24/chunk-server/master"
 	"gihu.bocm/Ehab-24/chunk-server/video"
 	"github.com/gin-gonic/gin"
 )
 
-const (
-	TMP_DIR = "./media/tmp/"
-	PROCESS_DIR = "./media/processed"
-	UPLOAD_DIR = "./media/uploads"
-)
-
-func ServeMPD(c *gin.Context) {
+func ServeMPDHandler(c *gin.Context) {
 	videoID := c.Query("id")
 	if videoID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No video id was provided."})
@@ -40,23 +43,43 @@ func ServeMPD(c *gin.Context) {
 	c.Data(http.StatusOK, "application/dash+xml", fileContent)
 }
 
-func UploadVideo(c *gin.Context) {
+func UploadVideohandler(c *gin.Context) {
+
+	// TODO:
+	videoID := int64(1)
+	chunkID, err := strconv.ParseInt(c.Query("chunk_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Query param: Invalid chunk id"})
+		return
+	}
+	_ = "Test Title 1"
+	replicate, err := strconv.ParseBool(c.Query("replicate"))
+	if err != nil {
+		replicate = false
+	}
+
 	file, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "No file was uploaded."})
 		return
 	}
 
+	if replicate {
+		handleClientUpload(c, videoID, chunkID, file)
+	} else {
+		handleReplicationRequest(c, args.Args.ID, videoID, chunkID, file)
+	}
+}
+
+func handleClientUpload(c *gin.Context, videoID int64, chunkID int64, file *multipart.FileHeader) {
+
+	chunkDir := video.GetChunkDir(videoID, chunkID)
 	if !video.IsVideo(file) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("Only video files are allowed. Found %s", file.Filename)})
 		return
 	}
 
-  // TODO:
-	videoID := 1
-	_ = "Test Title 1"
-
-	uploadedFilePath := filepath.Join(UPLOAD_DIR, file.Filename)
+	uploadedFilePath := filepath.Join(video.GetUploadDir(), file.Filename)
 	if err := c.SaveUploadedFile(file, uploadedFilePath); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save uploaded file"})
 		return
@@ -65,22 +88,22 @@ func UploadVideo(c *gin.Context) {
 	ext := ".mp4"
 	for _, q := range video.VideoQualities {
 		fragmentLabel := fmt.Sprintf("%d_%s", videoID, q.Label)
-		outFile := fmt.Sprintf("%s/%s%s", TMP_DIR, fragmentLabel, ext)
+		outFile := fmt.Sprintf("%s/%s%s", video.GetTmpDir(), fragmentLabel, ext)
 
 		if err := video.EncodeChunk(uploadedFilePath, outFile, q.Resolution, q.VideoBitrate, q.AudioBitrate); err != nil {
-      c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encode video: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to encode video: " + err.Error()})
 			return
 		}
 
 		inFile := outFile
 		outFile = strings.Replace(outFile, ext, "_frag"+ext, 1)
 		if err := video.SegmentChunk(inFile, outFile); err != nil {
-      c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to segment video: " + err.Error()})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to segment video: " + err.Error()})
 			return
 		}
 
 		inFile = outFile
-		outFile = fmt.Sprintf("%s/%s", PROCESS_DIR, fragmentLabel)
+		outFile = fmt.Sprintf("%s/%s.mpd", chunkDir, q.Label)
 		if err := video.ToMPD(inFile, outFile); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate MPEG-DASH files."})
 			return
@@ -90,7 +113,93 @@ func UploadVideo(c *gin.Context) {
 		fmt.Println("VIDEO METADATA:", fragmentLabel)
 	}
 
-	// Save chunk metadata to master
+	// TODO: Save chunk metadata to master
 
-	c.JSON(http.StatusCreated, gin.H{"id": videoID})
+	c.JSON(http.StatusCreated, gin.H{"id": videoID, "chunk_id": chunkID})
+
+	// Clean up
+	video.CleanTmpDir()
+	video.CleanUploadDir()
+
+	servers, err := master.GetReplicationServers(videoID)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	// TODO:
+	ownID := int64(1)
+	archivePath, err := video.CreateArchive(videoID, chunkID)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	wg := sync.WaitGroup{}
+	for _, server := range servers {
+		if server.ID == ownID {
+			log.Println("ERROR: Cannot replicate to self!")
+			continue
+		}
+		wg.Add(1)
+		go func(server *chunkserver.ChunkServer, videoID int64, chunkID int64, archivePath string) {
+			defer wg.Done()
+			replicate(server, videoID, chunkID, archivePath)
+		}(server, videoID, chunkID, archivePath)
+	}
+	wg.Wait()
+
+	if err := os.Remove(archivePath); err != nil {
+		log.Println(err)
+		return
+	}
+}
+
+func replicate(server *chunkserver.ChunkServer, videoID int64, chunkID int64, archivePath string) {
+	resp, err := server.Replicate(videoID, chunkID, archivePath)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		log.Println("Failed to replicate to", server.Host())
+	}
+	var result map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	if err != nil {
+		log.Println("Error decoding JSON:", err)
+		return
+	}
+	log.Println("Replication response:", result)
+	return
+}
+
+func handleReplicationRequest(c *gin.Context, serverID int64, videoID int64, chunkID int64, file *multipart.FileHeader) {
+
+	archivePath := video.GetReplicationArchivePath(serverID, videoID, chunkID)
+	log.Println("Saving archive to: ", archivePath)
+	if err := c.SaveUploadedFile(file, archivePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save uploaded archive"})
+		return
+	}
+
+	if _, err := os.Stat(archivePath); err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Archive does not exist: %s", archivePath)})
+		return
+	}
+
+	archive, err := zip.OpenReader(archivePath)
+	if err != nil {
+		log.Println(err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Error while opening archive: %s", err.Error())})
+		return
+	}
+	outDir := video.GetChunkDir(videoID, chunkID)
+	video.UnzipArchive(archive, outDir)
+	archive.Close()
+	video.CleanArchiveDir(videoID, chunkID)
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Replication successful!"})
 }

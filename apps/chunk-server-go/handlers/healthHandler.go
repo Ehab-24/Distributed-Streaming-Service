@@ -8,7 +8,7 @@ import (
 	"github.com/shirou/gopsutil/v3/mem"
 )
 
-func HealthCheck(c *gin.Context) {
+func HealthCheckHandler(c *gin.Context) {
 	cpuUsage, err := cpu.Percent(0, false)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve CPU usage"})
@@ -21,8 +21,8 @@ func HealthCheck(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status":       "ok",
-		"cpu":          gin.H{"usage": cpuUsage},
-    "memory":      gin.H{"total": memInfo.Total, "used": memInfo.Used, "free": memInfo.Free, "active": memInfo.Active, "inactive": memInfo.Inactive, "cached": memInfo.Cached, "buffered": memInfo.Buffers, "shared": memInfo.Shared, "slab": memInfo.Slab},
+		"status": "ok",
+		"cpu":    gin.H{"usage": cpuUsage},
+		"memory": gin.H{"total": memInfo.Total, "used": memInfo.Used, "free": memInfo.Free, "active": memInfo.Active, "inactive": memInfo.Inactive, "cached": memInfo.Cached, "buffered": memInfo.Buffers, "shared": memInfo.Shared, "slab": memInfo.Slab},
 	})
 }
