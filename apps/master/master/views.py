@@ -9,6 +9,9 @@ from django.conf import settings
 
 @api_view(['GET'])
 def create_video(request):
+    """
+    Used by the client to set up metadata for a new video.
+    """
     serializer = VideoSerializer(data=request.dqata)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -44,6 +47,9 @@ def create_video(request):
 
 @api_view(['GET'])
 def get_replication_servers(request):
+    """
+    Used by the primary hcunk server to get the list of replica servers for a chunk.
+    """
     video_id = request.query_params.get('video_id')
     chunk_id = request.query_params.get('chunk_id')
     chunk = Chunk.objects.get(id=chunk_id, video_id=video_id)
@@ -54,7 +60,7 @@ def get_replication_servers(request):
 @api_view(['POST'])
 def notify_replication(request):
     """
-    Used by the primary chunk server to notify the master server that a chunk is successfully replicated.
+    Used by the primary chunk server to notify the master server that a chunk has been successfully replicated.
     """
     n_replicas = request.query_params.get('n_replicas')
     video_id = request.query_params.get('video_id')
