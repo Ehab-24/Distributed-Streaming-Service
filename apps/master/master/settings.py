@@ -126,4 +126,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 # Custom settings
-CHUNK_DURATION = 15
+CHUNK_DURATION = 10

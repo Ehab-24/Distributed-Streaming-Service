@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/Ehab-24/eds-cli-client/args"
 )
 
 func GetDuration(filePath string) (float64, error) {
@@ -36,14 +39,6 @@ func (d *Duration) String() string {
 func Split(inputFile string, outputFile string, startDuration Duration, endDuration Duration) {
 	cmd := exec.Command("ffmpeg", "-ss", startDuration.String(), "-to", endDuration.String(), "-i", inputFile, "-codec", "copy", outputFile)
 	cmd.Run()
-
-	log.Printf("%s %s %s %s %s %s %s %s %s %s\n", "ffmpeg", "-ss", startDuration.String(), "-to", endDuration.String(), "-i", inputFile, "-codec", "copy", outputFile)
-
-	verbose := true
-	if verbose {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
 }
 
 func Quality(inputFile string) (VideoQaulity, error) {
@@ -83,7 +78,7 @@ type VideoClient struct {
 	Port   int
 }
 
-func NewClient(scheme string, host string, port int) VideoClient {
+func NewChunkServerClient(scheme string, host string, port int) VideoClient {
 	return VideoClient{
 		Scheme: scheme,
 		Host:   host,
@@ -100,76 +95,64 @@ func (vc *VideoClient) UploadURL() string {
 }
 
 func (vc *VideoClient) newUploadRequest(writer *multipart.Writer, videoID int64, chunkID int64, body *bytes.Buffer) (*http.Request, error) {
-	url := vc.UploadURL() + fmt.Sprintf("?id=%d&chunk_id=%d&replicate=%t", videoID, chunkID, true)
+	url := vc.UploadURL() + fmt.Sprintf("?video_id=%d&chunk_id=%d&replicate=%t", videoID, chunkID, true)
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
-    return nil, err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
-  return req, nil
+	return req, nil
 }
 
-func (vc *VideoClient) Upload(videoID int64, chunkID int64, fileName string, filePath string, title string) {
+func (vc *VideoClient) Upload(videoID int64, chunkID int64, fileName string, filePath string, ext string) error {
 	// Open the file
 	file, err := os.Open(filePath)
 	if err != nil {
-		fmt.Println("Error opening file:", err)
-		return
+		return err
 	}
 	defer file.Close()
 
-	// Create a buffer to write our multipart form data
 	var requestBody bytes.Buffer
 	writer := multipart.NewWriter(&requestBody)
 
-	// Add the file to the form
-	part, err := writer.CreateFormFile("file", fileName)
+	part, err := writer.CreateFormFile("file", fmt.Sprintf("%d_%d.%s", int(videoID), int(chunkID), ext))
 	if err != nil {
-		fmt.Println("Error creating form file:", err)
-		return
+		return err
 	}
 	_, err = io.Copy(part, file)
 	if err != nil {
-		fmt.Println("Error copying file:", err)
-		return
+		return err
 	}
 
-	// Add the title field to the form
-	err = writer.WriteField("title", title)
-	if err != nil {
-		fmt.Println("Error writing title field:", err)
-		return
+	if err = writeField(writer, "title", args.Args.VideoTitle); err != nil {
+		return err
+	}
+	if err = writeField(writer, "descriptionn", args.Args.VideoDescription); err != nil {
+		return err
 	}
 
-	// Close the writer to finalize the form data
 	err = writer.Close()
-	if err != nil {
-		fmt.Println("Error closing writer:", err)
-		return
+  if err != nil {
+		return err
 	}
 
-  req, err := vc.newUploadRequest(writer, videoID, chunkID, &requestBody)
-  if err != nil {
-    fmt.Println("Error creating upload request:", err)
-    return
-  }
-
+	req, err := vc.newUploadRequest(writer, videoID, chunkID, &requestBody)
+	if err != nil {
+		return err
+	}
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error sending request:", err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
-	// Print the response status and body
-	fmt.Println("Response Status:", resp.Status)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println("Error reading response body:", err)
-		return
+		return err
 	}
-	fmt.Println("Response Body:", string(body))
+  log.Println(string(body))
+  return nil
 }
 
 func GetFileNameAndExt(filePath string) (string, string) {
@@ -180,4 +163,29 @@ func GetFileNameAndExt(filePath string) (string, string) {
 	ext := splits[len(splits)-1]
 
 	return fileName, ext
+}
+
+func writeField(writer *multipart.Writer, name string, value string) error {
+	err := writer.WriteField(name, value)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetDurationRange(index int, totalDuration float64) (Duration, Duration) {
+  duration := int(math.Ceil(totalDuration))
+  startSec := index * args.Args.ChunkDuration
+  endSec := min(startSec+args.Args.ChunkDuration, duration)
+  startDur := Duration {
+    Hours: 0,
+    Minutes: startSec/60,
+    Seconds: startSec%60,
+  }
+  endDur := Duration {
+    Hours: 0,
+    Minutes: endSec/60,
+    Seconds: endSec%60,
+  }
+  return startDur, endDur
 }

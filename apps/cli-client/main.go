@@ -3,38 +3,46 @@ package main
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/Ehab-24/eds-cli-client/args"
+	"github.com/Ehab-24/eds-cli-client/master"
 	"github.com/Ehab-24/eds-cli-client/video"
 )
 
 func main() {
 
-	args := args.Parse()
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	args.Parse()
 
-	fileName, ext := video.GetFileNameAndExt(args.FilePath)
-	_, err := video.GetDuration(args.FilePath)
+	fileName, ext := video.GetFileNameAndExt(args.Args.FilePath)
+	totalDuration, err := video.GetDuration(args.Args.FilePath)
+	check(err)
+	metadata, err := master.PostVideoMetadta(totalDuration)
 	check(err)
 
-	startDuration := video.Duration{
-		Hours:   0,
-		Minutes: 0,
-		Seconds: 0,
-	}
-	endDuration := video.Duration{
-		Hours:   0,
-		Minutes: 0,
-		Seconds: args.ChunkDuration,
-	}
+	var wg sync.WaitGroup
+	for i, chunk := range metadata.Chunks {
+    wg.Add(1)
+		go func(index int, chunk master.Chunk) {
+      defer wg.Done()
 
-	chunkFile := fmt.Sprintf("tmp/chunks/%s_0.mp4", fileName)
-	video.Split(args.FilePath, chunkFile, startDuration, endDuration)
+			log.Printf("⟳ [Chunk:%d] Creating split...\n", chunk.ID)
+			chunkServer := video.NewChunkServerClient("http", chunk.Server.IP, chunk.Server.Port)
+			startDuration, endDuration := video.GetDurationRange(index, totalDuration)
+			chunkFile := fmt.Sprintf("tmp/chunks/%s_%d.mp4", fileName, chunk.ID)
+			video.Split(args.Args.FilePath, chunkFile, startDuration, endDuration)
 
-  // TODO
-  videoID := int64(1)
-  chunkID := int64(1)
-  videoClient := video.NewClient("http", "127.0.0.1", args.Port)
-	videoClient.Upload(videoID, chunkID, fileName+"."+ext, chunkFile, "Test Video 1")
+			log.Printf("⟳ [Chunk:%d] Uploading...\n", chunk.ID)
+			if err := chunkServer.Upload(metadata.ID, chunk.ID, fileName+"."+ext, chunkFile, ext); err != nil {
+				log.Printf(" [Chunk:%d] Error while uploading: %s", chunk.ID, err.Error())
+			} else {
+				log.Printf(" [Chunk:%d] Upload complete.\n", chunk.ID)
+			}
+		}(i, chunk)
+	}
+	wg.Wait()
+	log.Println(" Uploaded all chunks")
 }
 
 func check(err error) {

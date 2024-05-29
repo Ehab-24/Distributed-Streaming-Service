@@ -1,43 +1,34 @@
 package args
 
 import (
+	"flag"
 	"fmt"
-	"log"
 	"os"
-	"strconv"
 )
 
-type Args struct {
-	ChunkDuration int
-	FilePath      string
-  Port          int
+type TArgs struct {
+	VideoTitle        string
+	VideoDescription  string
+	ChunkDuration     int
+	FilePath          string
+	ReplicationFactor int
 }
 
-func Parse() Args {
-  if len(os.Args) < 4 {
-    printUsage()
-  }
-  args := Args{
-    FilePath:      os.Args[1],
-    ChunkDuration: 10,
-    Port:          5000,
-  }
-  if len(os.Args) == 5 {
-    duration, err := strconv.Atoi(os.Args[2])
-    args.ChunkDuration = duration
-    if err != nil {
-      log.Fatal(err)
-    }
-    port, err := strconv.Atoi(os.Args[4])
-    args.Port = port
-    if err != nil {
-      log.Fatal(err)
-    }
-  }
-  return args
+var Args TArgs
+
+func Parse() {
+	if len(os.Args) < 4 {
+		printUsage()
+	}
+	flag.IntVar(&Args.ReplicationFactor, "replicas", 1, "The number of replicas of the video chunks")
+	flag.IntVar(&Args.ChunkDuration, "duration", 10, "Duration of each video chunk in seconds")
+	flag.StringVar(&Args.FilePath, "file", "", "Path to the video file to upload")
+	flag.StringVar(&Args.VideoTitle, "title", "", "The title of video")
+	flag.StringVar(&Args.VideoDescription, "description", "", "The description of video")
+	flag.Parse()
 }
 
 func printUsage() {
-  fmt.Println("Usage: eds-cli-client <file-path> <duration> <port>")
-  os.Exit(1)
+	fmt.Println("Usage: eds-cli-client <file-path> <duration> <port>")
+	os.Exit(1)
 }
