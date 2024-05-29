@@ -24,9 +24,9 @@ type VideoQuality struct {
 
 var VideoQualities = []VideoQuality{
 	{"720p", "1280x720", "5000k", "192k"},
-	{"480p", "854x480", "1500k", "128k"},
-	{"360p", "640x360", "800k", "96k"},
-	{"240p", "426x240", "400k", "64k"},
+	// {"480p", "854x480", "1500k", "128k"},
+	// {"360p", "640x360", "800k", "96k"},
+	// {"240p", "426x240", "400k", "64k"},
 }
 
 type VideoMetaData struct {

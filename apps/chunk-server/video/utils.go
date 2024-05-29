@@ -2,6 +2,7 @@ package video
 
 import (
 	"archive/zip"
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"gihu.bocm/Ehab-24/chunk-server/args"
 )
@@ -28,6 +30,7 @@ func IsVideo(file *multipart.FileHeader) bool {
 }
 
 func EncodeChunk(inputFile, outputFile, resolution, videoBitrate, audioBitrate string) error {
+  logPrefix := "EncodeChunk: "
 	cmd := exec.Command("ffmpeg",
 		"-i", inputFile,
 		"-c:v", "libx264",
@@ -43,21 +46,47 @@ func EncodeChunk(inputFile, outputFile, resolution, videoBitrate, audioBitrate s
 		outputFile,
 	)
 	log.Println(cmd.String())
-	err := cmd.Run()
-	return err
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+  log.Println(cmd.String())
+  err := cmd.Run()
+	if outBuf.Len() > 0 {
+    outBuf.WriteString(logPrefix)
+		log.Println("Standard Output:", outBuf.String())
+	}
+	if errBuf.Len() > 0 {
+    errBuf.WriteString(logPrefix)
+		log.Println("Standard Error:", errBuf.String())
+	}
+  return err
 }
 
 func SegmentChunk(inputFile, outputFile string) error {
+  time.Sleep(time.Second)
+  logPrefix := "SegmentChunk: "
 	cmd := exec.Command("mp4fragment",
 		inputFile,
 		outputFile,
 	)
-	log.Println(cmd.String())
-	err := cmd.Run()
-	return err
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+  log.Println(cmd.String())
+  err := cmd.Run()
+	if outBuf.Len() > 0 {
+    outBuf.WriteString(logPrefix)
+		log.Println("Standard Output:", outBuf.String())
+	}
+	if errBuf.Len() > 0 {
+    errBuf.WriteString(logPrefix)
+		log.Println("Standard Error:", errBuf.String())
+	}
+  return err
 }
 
 func ToMPD(inputFile, outputFile string) error {
+  logPrefix := "ToMPD: "
 	cmd := exec.Command("ffmpeg",
 		"-i", inputFile,
 		"-c:v", "copy",
@@ -65,9 +94,20 @@ func ToMPD(inputFile, outputFile string) error {
 		"-f", "dash",
 		outputFile,
 	)
-	log.Println(cmd.String())
-	err := cmd.Run()
-	return err
+	var outBuf, errBuf bytes.Buffer
+	cmd.Stdout = &outBuf
+	cmd.Stderr = &errBuf
+  log.Println(cmd.String())
+  err := cmd.Run()
+	if outBuf.Len() > 0 {
+    outBuf.WriteString(logPrefix)
+		log.Println("Standard Output:", outBuf.String())
+	}
+	if errBuf.Len() > 0 {
+    errBuf.WriteString(logPrefix)
+		log.Println("Standard Error:", errBuf.String())
+	}
+  return err
 }
 
 func CreateArchive(videoID int64, chunkID int64) (string, error) {
@@ -79,7 +119,7 @@ func CreateArchive(videoID int64, chunkID int64) (string, error) {
 	}
 	defer archive.Close()
 	zipWriter := zip.NewWriter(archive)
-  defer zipWriter.Close()
+	defer zipWriter.Close()
 
 	dataDir := GetChunkDir(videoID, chunkID)
 	files, err := os.ReadDir(dataDir)
@@ -107,7 +147,7 @@ func CreateArchive(videoID int64, chunkID int64) (string, error) {
 
 func UnzipArchive(archive *zip.ReadCloser, outDir string) error {
 	for _, f := range archive.File {
-    log.Println("Unzipping file: ", f.Name)
+		log.Println("Unzipping file: ", f.Name)
 		filePath := filepath.Join(outDir, f.Name)
 
 		if !strings.HasPrefix(filePath, filepath.Clean(outDir)+string(os.PathSeparator)) {
@@ -144,47 +184,47 @@ func UnzipArchive(archive *zip.ReadCloser, outDir string) error {
 }
 
 func maybeCreateDir(path string) bool {
-  if _, err := os.Stat(path); os.IsNotExist(err) {
-    os.MkdirAll(path, os.ModePerm)
-    return true
-  }
-  return false
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		os.MkdirAll(path, os.ModePerm)
+		return true
+	}
+	return false
 }
 
 func GetArchivePath(videoID int64, chunkID int64) string {
-  fileName := fmt.Sprintf("%d_%d.zip", videoID, chunkID)
-  return filepath.Join(GetArchiveDir(videoID, chunkID), fileName)
+	fileName := fmt.Sprintf("%d_%d.zip", videoID, chunkID)
+	return filepath.Join(GetArchiveDir(videoID, chunkID), fileName)
 }
 
 func GetReplicationArchivePath(serverID int64, videoID int64, chunkID int64) string {
-  dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, serverID, ARCHIVE_DIR)
-  fileName := fmt.Sprintf("%d_%d.zip", videoID, chunkID)
-  maybeCreateDir(dirPath)
-  return filepath.Join(dirPath, fileName)
+	dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, serverID, ARCHIVE_DIR)
+	fileName := fmt.Sprintf("%d_%d.zip", videoID, chunkID)
+	maybeCreateDir(dirPath)
+	return filepath.Join(dirPath, fileName)
 }
 
 func GetUploadDir() string {
-  dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, UPLOAD_DIR)
-  maybeCreateDir(dirPath)
-  return dirPath
+	dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, UPLOAD_DIR)
+	maybeCreateDir(dirPath)
+	return dirPath
 }
 
 func GetTmpDir() string {
-  dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, TMP_DIR)
-  maybeCreateDir(dirPath)
-  return dirPath
+	dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, TMP_DIR)
+	maybeCreateDir(dirPath)
+	return dirPath
 }
 
 func GetProcessDir() string {
-  dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, PROCESS_DIR)
-  maybeCreateDir(dirPath)
-  return dirPath
+	dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, PROCESS_DIR)
+	maybeCreateDir(dirPath)
+	return dirPath
 }
 
 func GetArchiveDir(videoID int64, chunkID int64) string {
-  dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, ARCHIVE_DIR)
-  maybeCreateDir(dirPath)
-  return dirPath
+	dirPath := fmt.Sprintf("%s/%d/%s/", DATA_DIR, args.Args.ID, ARCHIVE_DIR)
+	maybeCreateDir(dirPath)
+	return dirPath
 }
 
 func GetChunkDir(videoID int64, chunkID int64) string {

@@ -10,9 +10,13 @@ import (
 )
 
 type ChunkServer struct {
-	ID   int64
-	IP   string
-	Port int
+	ID   int64  `json:"server_id"`
+	IP   string `json:"server_ip"`
+	Port int    `json:"server_port"`
+}
+
+type ChunkServers struct {
+  Servers []*ChunkServer `json:"servers"`
 }
 
 func (cs *ChunkServer) Host() string {
@@ -63,7 +67,7 @@ func (cs *ChunkServer) Replicate(videoID int64, chunkID int64, filePath string) 
 }
 
 func (cs *ChunkServer) newReplicateRequest(writer *multipart.Writer, videoID int64, chunkID int64, body *bytes.Buffer) (*http.Request, error) {
-	url := cs.ReplicateURL() + fmt.Sprintf("?id=%d&chunk_id=%d", videoID, chunkID)
+	url := cs.ReplicateURL() + fmt.Sprintf("?video_id=%d&chunk_id=%d", videoID, chunkID)
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
 		return nil, err

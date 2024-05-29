@@ -6,6 +6,7 @@ import (
 
 	"gihu.bocm/Ehab-24/chunk-server/args"
 	"gihu.bocm/Ehab-24/chunk-server/handlers"
+	"gihu.bocm/Ehab-24/chunk-server/video"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -33,6 +34,8 @@ func applyMiddleware(r *gin.Engine) {
 func setupRoutes(r *gin.Engine) {
 	r.POST("/video/upload", handlers.UploadVideohandler)
 	r.GET("/video/serve", handlers.ServeMPDHandler)
-	r.Static("media/processed", "./media/processed")
-	r.GET("/health", handlers.HealthCheckHandler)
+  r.GET("/health", handlers.HealthCheckHandler)
+
+  processedDir := video.GetProcessDir()
+	r.Static(processedDir, processedDir)
 }
