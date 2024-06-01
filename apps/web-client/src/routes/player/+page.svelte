@@ -11,11 +11,11 @@
 
   function getServerPort(server_id: string): number {
     switch (server_id) {
-      case "1":
+      case "4":
         return 5000;
-      case "2":
+      case "5":
         return 5001;
-      case "3":
+      case "6":
         return 5002;
       default:
         throw new Error("Invalid server_id");
