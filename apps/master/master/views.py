@@ -5,6 +5,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.conf import settings
+from django.core import serializers
 
 
 @api_view(['POST'])
@@ -71,3 +72,18 @@ def notify_replication(request):
     chunk.save()
     return Response(status=status.HTTP_200_OK)
 
+
+@api_view(["Get"])
+def get_videos(request):
+    """
+    Returns a list of all videos, and the chunks associated with each video.
+    """
+    videos = Video.objects.all()
+    response_data = []
+    for video in videos:
+        chunks = Chunk.objects.filter(video=video)
+        response_data.append({
+            "video": serializers.serialize('json', [video]),
+            "chunks": [{"chunk_id": chunk.id, "n_replicas": chunk.n_replicas} for chunk in chunks]
+        })
+    return Response(response_data)
