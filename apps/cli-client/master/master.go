@@ -6,13 +6,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
-
-	"github.com/Ehab-24/eds-cli-client/args"
 )
 
 type Server struct {
-  ID   int    `json:"id"`
-  IP   string `json:"ip"`
+	ID   int    `json:"id"`
+	IP   string `json:"ip"`
 	Port int    `json:"port"`
 }
 
@@ -26,12 +24,21 @@ type VideoMetadata struct {
 	Chunks []Chunk `json:"chunks"`
 }
 
-func PostVideoMetadta(duration float64) (*VideoMetadata, error) {
+type PostVideoMetadtaPayload struct {
+	Title              string
+	Description        string
+	Replication_factor int
+	Duration           float64
+	Chunk_duration     int
+}
+
+func PostVideoMetadta(payload PostVideoMetadtaPayload) (*VideoMetadata, error) {
 	data := map[string]any{
-		"title":              "Test Video 1",
-		"description":        "Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.Your Description",
-		"replication_factor": args.Args.ReplicationFactor,
-		"duration":           duration,
+		"title":              payload.Title,
+		"description":        payload.Description,
+		"replication_factor": payload.Replication_factor,
+		"duration":           payload.Duration,
+		"chunk_duration":     payload.Chunk_duration,
 	}
 	jsonData, _ := json.Marshal(data)
 

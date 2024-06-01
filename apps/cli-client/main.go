@@ -18,14 +18,22 @@ func main() {
 	fileName, ext := video.GetFileNameAndExt(args.Args.FilePath)
 	totalDuration, err := video.GetDuration(args.Args.FilePath)
 	check(err)
-	metadata, err := master.PostVideoMetadta(totalDuration)
+
+	payload := master.PostVideoMetadtaPayload{
+		Title:              fileName,
+		Description:        "This is a video",
+		Replication_factor: args.Args.ReplicationFactor,
+		Duration:           totalDuration,
+		Chunk_duration:     args.Args.ChunkDuration,
+	}
+	metadata, err := master.PostVideoMetadta(payload)
 	check(err)
 
 	var wg sync.WaitGroup
 	for i, chunk := range metadata.Chunks {
-    wg.Add(1)
+		wg.Add(1)
 		go func(index int, chunk master.Chunk) {
-      defer wg.Done()
+			defer wg.Done()
 
 			log.Printf("⟳ [Chunk:%d] Creating split...\n", chunk.ID)
 			chunkServer := video.NewChunkServerClient("http", chunk.Server.IP, chunk.Server.Port)
