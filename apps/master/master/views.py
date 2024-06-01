@@ -5,7 +5,6 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.conf import settings
-from django.core import serializers
 
 
 @api_view(['POST'])
@@ -22,10 +21,11 @@ def create_video(request):
 
     video = Video.objects.get(id=serializer.data['id'])
     total_duration = video.duration
-    chunk_count = int(total_duration // settings.CHUNK_DURATION + 1)
+    chunk_duration = serializer.data['chunk_duration']
+    chunk_count = int(total_duration // chunk_duration + 1)
     servers = ChunkServer.get_active()
     chunk_creator = ChunkCreator(servers, video, chunk_count)
-    created_chunks = chunk_creator.create_chunks()
+    created_chunks = chunk_creator.create_chunks(chunk_duration)
 
     chunks = []
     for chunk in created_chunks:
@@ -81,9 +81,16 @@ def get_videos(request):
     videos = Video.objects.all()
     response_data = []
     for video in videos:
-        chunks = Chunk.objects.filter(video=video)
+        chunk = Chunk.objects.order_by('id').first()
         response_data.append({
-            "video": serializers.serialize('json', [video]),
-            "chunks": [{"chunk_id": chunk.id, "n_replicas": chunk.n_replicas} for chunk in chunks]
+            "id": video.id,
+            "title": video.title,
+            "description": video.description,
+            "duration": video.duration,
+            "replication_factor": video.replication_factor,
+            "first_chunk": {
+                "id": chunk.id,
+                "server_id": chunk.replicas.first().id,
+            }
         })
     return Response(response_data)

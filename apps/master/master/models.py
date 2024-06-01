@@ -24,6 +24,7 @@ class Video(models.Model):
     title = models.CharField(max_length=100)
     description = models.TextField()
     replication_factor = models.IntegerField()
+    chunk_duration = models.IntegerField()
     duration = models.FloatField()
 
 
@@ -57,15 +58,15 @@ class ChunkCreator:
         self.servers.remove(server)
         return server
 
-    def create_chunks(self):
+    def create_chunks(self, chunk_duration):
         chunks = []
         total_duration = self.video.duration
 
         for i in range(self.chunk_count):
             chunk = Chunk.objects.create(
                 video=self.video,
-                start_time=i * settings.CHUNK_DURATION,
-                end_time=min((i + 1) * settings.CHUNK_DURATION, total_duration),
+                start_time=i * chunk_duration,
+                end_time=min((i + 1) * chunk_duration, total_duration),
                 n_replicas=self.video.replication_factor
             )
             initial_servers = deepcopy(self.servers)
