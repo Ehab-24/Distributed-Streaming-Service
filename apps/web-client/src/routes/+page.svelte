@@ -44,10 +44,10 @@
         class="max-w-xs"
       >
         <div
-          class="w-full aspect-[16/10] rounded-xl overflow-hidden bg-grey-300"
+          class="w-full aspect-[16/10] rounded-xl overflow-hidden"
         >
           <img
-            class="w-full h-full object-fit"
+            class="w-full h-full object-fit bg-gray-300"
             src="https://loremflickr.com/320/240?random=1"
             alt={video.title}
           />
