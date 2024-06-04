@@ -1,14 +1,18 @@
 from django.db import models
 from copy import deepcopy
-from django.conf import settings
+from django.utils import timezone
+import requests
 import random
 
 class ChunkServer(models.Model):
     id = models.AutoField(primary_key=True)
+    scheme = models.CharField(max_length=10)
     ip = models.CharField(max_length=100)
     port = models.IntegerField()
+    inactive_count = models.IntegerField(default=0)
     is_active = models.BooleanField(default=True)
     last_heartbeat = models.DateTimeField(auto_now=True)
+    stats = models.JSONField(default=dict)
 
     @staticmethod
     def get_active():
@@ -18,6 +22,15 @@ class ChunkServer(models.Model):
     @staticmethod
     def n_active():
         return ChunkServer.objects.filter(is_active=True).count()
+
+    def url(self):
+        return f'{self.scheme}://{self.ip}:{self.port}'
+
+    def send_heartbeat(self):
+        response = requests.get(self.url() + '/health/')
+        self.last_heartbeat = timezone.now()
+        self.save()
+        return response
 
 class Video(models.Model):
     id = models.AutoField(primary_key=True)
@@ -76,4 +89,5 @@ class ChunkCreator:
             chunk.assign_replicas(chunk_servers)
             chunks.append(chunk)
         return chunks
+
 
