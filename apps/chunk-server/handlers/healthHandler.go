@@ -29,7 +29,6 @@ func HealthCheckHandler(c *gin.Context) {
 	diskUsage := getDiskUsgae()
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": "ok",
 		"cpu":    gin.H{"usage": cpuUsage},
 		"memory": gin.H{"total": memInfo.Total, "used": memInfo.Used, "free": memInfo.Free, "active": memInfo.Active, "inactive": memInfo.Inactive, "cached": memInfo.Cached, "buffered": memInfo.Buffers, "shared": memInfo.Shared, "slab": memInfo.Slab},
 		"disk":   diskUsage,
