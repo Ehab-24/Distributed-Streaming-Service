@@ -26,7 +26,7 @@ func main() {
 		Duration:           totalDuration,
 		Chunk_duration:     args.Args.ChunkDuration,
 	}
-	metadata, err := master.PostVideoMetadta(payload)
+	metadata, err := master.PostVideoMetadata(payload)
 	check(err)
 
 	var wg sync.WaitGroup

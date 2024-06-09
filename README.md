@@ -72,7 +72,7 @@ pnpm dev
 Use the `cli-client` to upload a `.mp4` file:
 ```
 cd apps/cli-client
-go run . --file /path/to/video.mp4 --chunk-duration {chunk_duration}  --replicas {replication_factor} --title {title} --description {description}
+go run . --master-url http://localhost:8000 --file /path/to/video.mp4 --chunk-duration {chunk_duration}  --replicas {replication_factor} --title {title} --description {description}
 ```
 where:
  - `chunk_duration` is the length of each chunk split in seconds except for possibly the last one.

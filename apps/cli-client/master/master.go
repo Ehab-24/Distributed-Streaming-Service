@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/Ehab-24/eds-cli-client/args"
 )
 
 type Server struct {
@@ -32,7 +35,7 @@ type PostVideoMetadtaPayload struct {
 	Chunk_duration     int
 }
 
-func PostVideoMetadta(payload PostVideoMetadtaPayload) (*VideoMetadata, error) {
+func PostVideoMetadata(payload PostVideoMetadtaPayload) (*VideoMetadata, error) {
 	data := map[string]any{
 		"title":              payload.Title,
 		"description":        payload.Description,
@@ -42,8 +45,8 @@ func PostVideoMetadta(payload PostVideoMetadtaPayload) (*VideoMetadata, error) {
 	}
 	jsonData, _ := json.Marshal(data)
 
-	// TODO: master server ip and port
-	resp, err := http.Post("http://127.0.0.1:8000/create/", "application/json", bytes.NewBuffer(jsonData))
+  url := fmt.Sprintf("%s/create/", args.Args.MasterURL)
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
 	}

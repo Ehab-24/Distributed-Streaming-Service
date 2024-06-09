@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import shaka from "shaka-player";
   import { page } from "$app/stores";
+  
+  export let data: { servers: any[] };
 
   const isInteger = (str: string | null): boolean =>
     str !== null && /^\d+$/.test(str);
@@ -9,17 +11,12 @@
   let manifestUri: string;
   let player: any;
 
-  function getServerPort(server_id: string): number {
-    switch (server_id) {
-      case "4":
-        return 5000;
-      case "5":
-        return 5001;
-      case "6":
-        return 5002;
-      default:
-        throw new Error("Invalid server_id");
+  function getServer(server_id: string): string {
+    const server = data.servers.find((s) => s.id === parseInt(server_id));
+    if (server === undefined) {
+      throw new Error("Server not found");
     }
+    return `${server.ip}:${server.port}`;
   }
 
   let error: string | null = null;
@@ -42,7 +39,7 @@
     }
 
     function getManifestUri(chunk_id: string): string {
-      return `http://127.0.0.1:${getServerPort(server_id)}/data/${server_id}/media/processed/${video_id}_${chunk_id}/720p.mpd`;
+      return `http://${getServer(server_id)}/data/${server_id}/media/processed/${video_id}_${chunk_id}/720p.mpd`;
     }
     manifestUri = getManifestUri(chunk_id);
 

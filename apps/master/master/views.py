@@ -94,3 +94,13 @@ def get_videos(request):
             }
         })
     return Response(response_data)
+
+@api_view(['GET'])
+def get_active_servers(request):
+    """
+    Returns a list of all active servers.
+    """
+    servers = ChunkServer.get_active()
+    return Response({
+        "servers": [{"id": server.id, "ip": server.ip, "port": server.port} for server in servers]
+    })

@@ -83,10 +83,6 @@ func UploadVideohandler(c *gin.Context) {
 	} else {
 		handleReplicationRequest(c, args.Args.ID, payload.VideoID, payload.ChunkID, file)
 	}
-
- //  video.CleanArchiveDir(payload.VideoID, payload.ChunkID)
-	// video.CleanTmpDir()
-	// video.CleanUploadDir()
 }
 
 func handleClientUpload(c *gin.Context, videoID int64, chunkID int64, file *multipart.FileHeader) {
@@ -137,8 +133,6 @@ func handleClientUpload(c *gin.Context, videoID int64, chunkID int64, file *mult
 		fmt.Println("VIDEO METADATA:", fragmentLabel)
 	}
 
-	// TODO: Save chunk metadata to master
-
 	c.JSON(http.StatusCreated, gin.H{"id": videoID, "chunk_id": chunkID})
 
 	servers, err := master.GetReplicationServers(videoID, chunkID)
@@ -147,8 +141,6 @@ func handleClientUpload(c *gin.Context, videoID int64, chunkID int64, file *mult
 		return
 	}
 
-	// TODO:
-	ownID := int64(1)
 	archivePath, err := video.CreateArchive(videoID, chunkID)
 	if err != nil {
 		log.Println(err)
@@ -157,7 +149,7 @@ func handleClientUpload(c *gin.Context, videoID int64, chunkID int64, file *mult
 
 	wg := sync.WaitGroup{}
 	for _, server := range servers {
-		if server.ID == ownID {
+		if server.ID == args.Args.ID {
 			log.Println("ERROR: Cannot replicate to self!")
 			continue
 		}
@@ -219,7 +211,6 @@ func handleReplicationRequest(c *gin.Context, serverID int64, videoID int64, chu
 	outDir := video.GetChunkDir(videoID, chunkID)
 	video.UnzipArchive(archive, outDir)
 	archive.Close()
-  // TODO: video.CleanArchiveDir(videoID, chunkID)
 
 	c.JSON(http.StatusCreated, gin.H{"message": "Replication successful!"})
 }
